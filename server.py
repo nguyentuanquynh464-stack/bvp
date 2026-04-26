@@ -366,6 +366,9 @@ def solve_m4(K0, KT, Te, N):
 # ═══════════════════════════════════════
 # Flask API
 # ═══════════════════════════════════════
+@app.route('/')
+def home():
+    return "Server is running"
 @app.route('/solve', methods=['POST', 'OPTIONS'])
 def solve():
     if request.method == 'OPTIONS':

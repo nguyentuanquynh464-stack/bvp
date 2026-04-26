@@ -4,8 +4,6 @@ import { useApp, useTheme } from '../context/AppContext';
 import FieldInput from '../components/FieldInput';
 import CalPick from '../components/CalPick';
 
-const SERVER_URL = 'http://192.168.1.145:5000';
-
 const mdDefs = [
   { id: 1, icon: '📈' },
   { id: 2, icon: '⚙️' },
@@ -70,7 +68,7 @@ export default function InputScreen({ route, navigation }) {
 
     try {
       setSolving(true);
-      const response = await fetch(`${SERVER_URL}/solve`, {
+      const response = await fetch(`https://bvp-iud7.onrender.com/solve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
