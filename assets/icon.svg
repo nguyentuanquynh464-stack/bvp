@@ -1,0 +1,98 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="180" fill="#FFFFFF"/>
+
+  <!-- Shadow border -->
+  <rect x="6" y="10" width="1012" height="1008" rx="180" fill="#C8D4E8" opacity="0.5"/>
+  <rect width="1024" height="1024" rx="180" fill="#FFFFFF"/>
+  <rect x="3" y="3" width="1018" height="1018" rx="178" fill="none" stroke="#003DA5" stroke-width="12"/>
+
+  <!-- Decorative circles (top-right) -->
+  <circle cx="820" cy="260" r="160" fill="none" stroke="#E8EEF8" stroke-width="28"/>
+  <circle cx="820" cy="260" r="112" fill="none" stroke="#DDE5F5" stroke-width="20"/>
+  <circle cx="820" cy="260" r="70" fill="none" stroke="#D0DBF0" stroke-width="16"/>
+  <circle cx="820" cy="260" r="34" fill="#DDE5F5"/>
+
+  <!-- Chart area: axes -->
+  <!-- X axis -->
+  <line x1="160" y1="580" x2="780" y2="580" stroke="#003DA5" stroke-width="8" stroke-linecap="round"/>
+  <!-- Y axis -->
+  <line x1="160" y1="180" x2="160" y2="580" stroke="#003DA5" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- Axis arrows -->
+  <polygon points="780,580 760,568 760,592" fill="#003DA5"/>
+  <polygon points="160,180 148,200 172,200" fill="#003DA5"/>
+
+  <!-- Axis labels -->
+  <text x="795" y="590" font-family="'Courier New',monospace" font-size="42" font-style="italic" fill="#003DA5">x</text>
+  <text x="160" y="168" font-family="'Courier New',monospace" font-size="42" font-style="italic" fill="#003DA5" text-anchor="middle">u</text>
+
+  <!-- Boundary vertical dashed lines -->
+  <line x1="240" y1="200" x2="240" y2="580" stroke="#99B3D8" stroke-width="4" stroke-dasharray="14 10"/>
+  <line x1="700" y1="200" x2="700" y2="580" stroke="#99B3D8" stroke-width="4" stroke-dasharray="14 10"/>
+
+  <!-- Boundary labels -->
+  <text x="240" y="625" font-family="'Courier New',monospace" font-size="36" font-style="italic" fill="#003DA5" text-anchor="middle">a</text>
+  <text x="700" y="625" font-family="'Courier New',monospace" font-size="36" font-style="italic" fill="#003DA5" text-anchor="middle">b</text>
+
+  <!-- FEM triangular fill under curve (light blue polygons) -->
+  <polygon points="240,460 308,348 240,580" fill="#EEF2FA" stroke="#D8E2F2" stroke-width="2"/>
+  <polygon points="308,348 308,580 240,580" fill="#F2F5FC" stroke="#D8E2F2" stroke-width="2"/>
+  <polygon points="308,348 386,272 308,580" fill="#EEF2FA" stroke="#D8E2F2" stroke-width="2"/>
+  <polygon points="386,272 386,580 308,580" fill="#F2F5FC" stroke="#D8E2F2" stroke-width="2"/>
+  <polygon points="386,272 470,248 386,580" fill="#EEF2FA" stroke="#D8E2F2" stroke-width="2"/>
+  <polygon points="470,248 470,580 386,580" fill="#F2F5FC" stroke="#D8E2F2" stroke-width="2"/>
+  <polygon points="470,248 560,270 470,580" fill="#EEF2FA" stroke="#D8E2F2" stroke-width="2"/>
+  <polygon points="560,270 560,580 470,580" fill="#F2F5FC" stroke="#D8E2F2" stroke-width="2"/>
+  <polygon points="560,270 700,370 560,580" fill="#EEF2FA" stroke="#D8E2F2" stroke-width="2"/>
+  <polygon points="700,370 700,580 560,580" fill="#F2F5FC" stroke="#D8E2F2" stroke-width="2"/>
+
+  <!-- BVP solution curve fill -->
+  <path d="M 240 460 C 340 120 530 120 700 370 L 700 580 L 240 580 Z" fill="#CC0000" opacity="0.06"/>
+
+  <!-- BVP solution curve (main red curve) -->
+  <path d="M 240 460 C 340 120 530 120 700 370" fill="none" stroke="#CC0000" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 240 460 C 340 120 530 120 700 370" fill="none" stroke="#FF6666" stroke-width="4" stroke-linecap="round" opacity="0.4"/>
+
+  <!-- FEM node dots on curve -->
+  <circle cx="308" cy="348" r="10" fill="#FFFFFF" stroke="#003DA5" stroke-width="6"/>
+  <circle cx="386" cy="272" r="10" fill="#FFFFFF" stroke="#003DA5" stroke-width="6"/>
+  <circle cx="470" cy="248" r="10" fill="#FFFFFF" stroke="#003DA5" stroke-width="6"/>
+  <circle cx="560" cy="270" r="10" fill="#FFFFFF" stroke="#003DA5" stroke-width="6"/>
+
+  <!-- Boundary condition dots -->
+  <circle cx="240" cy="460" r="28" fill="#CC0000"/>
+  <circle cx="240" cy="460" r="14" fill="#FFFFFF"/>
+  <circle cx="700" cy="370" r="28" fill="#CC0000"/>
+  <circle cx="700" cy="370" r="14" fill="#FFFFFF"/>
+
+  <!-- Alpha/Beta labels -->
+  <text x="200" y="455" font-family="serif" font-size="48" font-style="italic" fill="#CC0000" text-anchor="end">α</text>
+  <text x="742" y="365" font-family="serif" font-size="48" font-style="italic" fill="#CC0000">β</text>
+
+  <!-- Method labels -->
+  <text x="172" y="310" font-family="'Courier New',monospace" font-size="32" fill="#6688BB">Shooting</text>
+  <text x="172" y="525" font-family="'Courier New',monospace" font-size="32" fill="#6688BB">FEM</text>
+  <text x="620" y="230" font-family="'Courier New',monospace" font-size="32" fill="#6688BB" text-anchor="end">FDM</text>
+
+  <!-- Equation at top -->
+  <text x="512" y="148" font-family="'Courier New',monospace" font-size="34" fill="#6688BB" text-anchor="middle">u'' + p(x)·u' + q(x)·u = f(x)</text>
+
+  <!-- Divider lines -->
+  <rect x="60" y="652" width="904" height="9" rx="4" fill="#CC0000"/>
+  <rect x="60" y="666" width="904" height="5" rx="2" fill="#003DA5"/>
+
+  <!-- BVPSolver text -->
+  <text x="512" y="768" font-family="'Courier New',monospace" font-size="118" font-weight="700" text-anchor="middle">
+    <tspan fill="#003DA5">BVP</tspan><tspan fill="#CC0000">Solver</tspan>
+  </text>
+
+  <!-- Divider -->
+  <line x1="80" y1="790" x2="944" y2="790" stroke="#D0D8E8" stroke-width="3"/>
+
+  <!-- Subtitle -->
+  <text x="512" y="840" font-family="'Courier New',monospace" font-size="34" fill="#6688BB" text-anchor="middle" letter-spacing="3">Boundary Value Problems</text>
+
+  <!-- University -->
+  <text x="512" y="890" font-family="'Courier New',monospace" font-size="28" fill="#003DA5" text-anchor="middle" letter-spacing="2">TON DUC THANG UNIVERSITY</text>
+</svg>
