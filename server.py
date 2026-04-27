@@ -49,7 +49,7 @@ def _compute_omega(prices):
     mean = sum(prices) / n
     x    = [v - mean for v in prices]
     max_mag = 0.0; max_k = 1
-    for k in range(1, n):
+    for k in range(1, n // 2 + 1):
         re = 0.0; im = 0.0
         for j in range(n):
             angle = -2 * math.pi * k * j / n
@@ -114,15 +114,18 @@ def g_fdm(a, b, al, bt, N, pF, qF, rF):
     interior = solve_gen(A, bv, n)
     return {'t': t, 'y': [al] + interior + [bt]}
 
-def g_sm(a, b, al, bt, N, fS, s1, s2):
-    h = (b - a) / (N - 1)
-    t = linspace(a, b, N)
+def g_sm(a, b, al, bt, N, fS, s1, s2, n_int=None):
+    # Use a finer internal grid when needed for RK4 stability (e.g. large omega*T)
+    n_eff = max(N, n_int) if n_int else N
+    h = (b - a) / (n_eff - 1)
+    t_eff = linspace(a, b, n_eff)
+    t_out = linspace(a, b, N)
 
     def rk4(s):
         w = [al, s]
         ys = [al]
-        for k in range(N - 1):
-            tk = t[k]
+        for k in range(n_eff - 1):
+            tk = t_eff[k]
             K1 = fS(tk, w)
             K2 = fS(tk + h / 2, [w[0] + h / 2 * K1[0], w[1] + h / 2 * K1[1]])
             K3 = fS(tk + h / 2, [w[0] + h / 2 * K2[0], w[1] + h / 2 * K2[1]])
@@ -134,10 +137,23 @@ def g_sm(a, b, al, bt, N, fS, s1, s2):
             ys.append(w[0])
         return ys
 
-    p1 = rk4(s1)[N - 1]
-    p2 = rk4(s2)[N - 1]
+    p1 = rk4(s1)[n_eff - 1]
+    p2 = rk4(s2)[n_eff - 1]
     s = s1 if abs(p2 - p1) < 1e-15 else s1 + (s2 - s1) * (bt - p1) / (p2 - p1)
-    return {'t': t, 'y': rk4(s)}
+    ys_fine = rk4(s)
+
+    if n_eff == N:
+        return {'t': t_out, 'y': ys_fine}
+
+    # Interpolate fine-grid values onto the N output points
+    ys_out = []
+    for tv in t_out:
+        fi = (tv - a) / (b - a) * (n_eff - 1)
+        i0 = int(fi)
+        i1 = min(i0 + 1, n_eff - 1)
+        frac = fi - i0
+        ys_out.append(ys_fine[i0] * (1.0 - frac) + ys_fine[i1] * frac)
+    return {'t': t_out, 'y': ys_out}
 
 def g_fem(a, b, al, bt, N, pF, qF, gF):
     t = linspace(a, b, N)
@@ -209,7 +225,9 @@ def solve_m1(a, b, ya, yb, N, w):
 
     fdm = g_fdm(a, b, ya, yb, N, lambda t: 0.0, lambda t: -w * w, lambda t: 0.0)
     sScale = (abs(ya) + abs(yb) + 1) * w
-    sm = g_sm(a, b, ya, yb, N, lambda t, y: [y[1], -w * w * y[0]], -sScale, sScale)
+    # Ensure RK4 stability: need omega*h <= ~1; use at least omega*(b-a)+2 steps
+    n_sm = max(N, int(w * (b - a)) + 2)
+    sm = g_sm(a, b, ya, yb, N, lambda t, y: [y[1], -w * w * y[0]], -sScale, sScale, n_int=n_sm)
     fem = g_fem(a, b, ya, yb, N, lambda t: 0.0, lambda t: w * w, lambda t: 0.0)
 
     tEx = linspace(a, b, 300)
