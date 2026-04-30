@@ -381,7 +381,6 @@ def solve_m3(r1, T1, r2, T2, N):
     fdm = g_fdm(r1, r2, T1, T2, N, lambda r: 0.0, lambda r: 0.0, lambda r: -2 / r)
     sm  = g_sm(r1, r2, T1, T2, N, lambda r, y: [y[1], -(2 / r) * y[1]], -1.0, 1.0)
     fem = g_fem(r1, r2, T1, T2, N, lambda r: 2 / r, lambda r: 0.0, lambda r: 0.0)
-    y_rk5 = rk5_m3(r1, T1, r2, T2, N)
 
     tEx = linspace(r1, r2, 200)
     yEx = [yE(r) for r in tEx]
@@ -390,8 +389,8 @@ def solve_m3(r1, T1, r2, T2, N):
         'fdm': fdm, 'sm': sm, 'fem': fem,
         'tEx': tEx, 'yEx': yEx,
         'eF': calc_err(fdm['y'], fdm['t'], yE),
-        'eS': max(abs(sm['y'][i]  - y_rk5[i]) for i in range(N)),
-        'eE': max(abs(fem['y'][i] - y_rk5[i]) for i in range(N)),
+        'eS': calc_err(sm['y'],  sm['t'],  yE),
+        'eE': calc_err(fem['y'], fem['t'], yE),
         'C1': C1, 'C2': C2,
     }
 
