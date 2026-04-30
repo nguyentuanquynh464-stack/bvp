@@ -49,17 +49,22 @@ export default function ConvergenceChart({ convData, mode, domainLen, isDark }) 
   const gc = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
   const refColor = '#16a34a';
 
-  const valid = convData.filter(d =>
+  const validAll = convData.filter(d =>
     d.eF > 1e-12 && d.eS > 1e-12 && d.eE > 1e-12 &&
     isFinite(d.eF) && isFinite(d.eS) && isFinite(d.eE)
   );
-  if (valid.length < 3) return null;
 
   const isOrder = mode === 'order';
   const dl = domainLen > 0 ? domainLen : 1;
 
+  // Lọc h < 1 cho mode order (log10(h) < 0), giống mô hình 1.py
+  const valid = isOrder
+    ? validAll.filter(d => dl / (d.N - 1) < 1)
+    : validAll;
+  if (valid.length < 3) return null;
+
   const xVals = isOrder
-    ? valid.map(d => dl / d.N)
+    ? valid.map(d => dl / (d.N - 1))   // h = (b-a)/(N-1)
     : valid.map(d => d.N);
 
   const datasets = [
@@ -112,13 +117,23 @@ export default function ConvergenceChart({ convData, mode, domainLen, isDark }) 
     return { slope, pts };
   }) : null;
 
-  // O(h²) reference line anchored at the median FDM point
-  let refPts = '';
+  // O(h²) reference anchored at median FDM point (FDM, FEM)
+  let refPts2 = '';
+  // O(h⁴) reference anchored at median SM point (SM dùng RK4)
+  let refPts4 = '';
   if (isOrder && xVals.length >= 2) {
     const mid = Math.floor(xVals.length / 2);
     const C2 = valid[mid].eF / Math.pow(xVals[mid], 2);
-    refPts = xVals.map(h => {
+    refPts2 = xVals.map(h => {
       const e = C2 * h * h;
+      if (!isFinite(e) || e < yMin * 0.05 || e > yMax * 20) return null;
+      const px = tX(h), py = tY(e);
+      if (!isFinite(px) || !isFinite(py)) return null;
+      return `${px.toFixed(1)},${py.toFixed(1)}`;
+    }).filter(Boolean).join(' ');
+    const C4 = valid[mid].eS / Math.pow(xVals[mid], 4);
+    refPts4 = xVals.map(h => {
+      const e = C4 * Math.pow(h, 4);
       if (!isFinite(e) || e < yMin * 0.05 || e > yMax * 20) return null;
       const px = tX(h), py = tY(e);
       if (!isFinite(px) || !isFinite(py)) return null;
@@ -184,8 +199,13 @@ export default function ConvergenceChart({ convData, mode, domainLen, isDark }) 
         </SvgText>
 
         {/* O(h²) reference line */}
-        {isOrder && refPts !== '' && (
-          <Polyline points={refPts} fill="none" stroke={refColor}
+        {isOrder && refPts2 !== '' && (
+          <Polyline points={refPts2} fill="none" stroke={refColor}
+            strokeWidth={1.5} strokeDasharray="3,3" />
+        )}
+        {/* O(h⁴) reference line — SM dùng RK4 */}
+        {isOrder && refPts4 !== '' && (
+          <Polyline points={refPts4} fill="none" stroke="#9333ea"
             strokeWidth={1.5} strokeDasharray="3,3" />
         )}
 
@@ -230,10 +250,16 @@ export default function ConvergenceChart({ convData, mode, domainLen, isDark }) 
           </View>
         ))}
         {isOrder && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <View style={{ width: 14, height: 2, backgroundColor: refColor }} />
-            <Text style={{ fontSize: 10, color: tc }}>O(h²)</Text>
-          </View>
+          <>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <View style={{ width: 14, height: 2, backgroundColor: refColor }} />
+              <Text style={{ fontSize: 10, color: tc }}>O(h²)</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <View style={{ width: 14, height: 2, backgroundColor: '#9333ea' }} />
+              <Text style={{ fontSize: 10, color: tc }}>O(h⁴)</Text>
+            </View>
+          </>
         )}
       </View>
     </View>

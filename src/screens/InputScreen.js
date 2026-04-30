@@ -70,7 +70,7 @@ export default function InputScreen({ route, navigation }) {
     }).then(r => r.json()).catch(() => null);
 
     // Fixed N values for convergence order chart + user's N for main result
-    const convNs = [...new Set([5, 10, 20, 50, 100, N])].sort((a, b) => a - b);
+    const convNs = [...new Set([5, 9, 17, 33, 65, 129, 257, N])].sort((a, b) => a - b);
 
     try {
       setSolving(true);
@@ -90,8 +90,8 @@ export default function InputScreen({ route, navigation }) {
       // Reconstruct yExact function from server metadata
       let yExact;
       if (modelId === 1) {
-        const { w, Ac, Bc } = data;
-        yExact = t => Ac * Math.cos(w * t) + Bc * Math.sin(w * t);
+        const { w, Ac, Bc, mu: mu1 } = data;
+        yExact = t => Ac * Math.cos(w * t) + Bc * Math.sin(w * t) + (mu1 || 0);
       } else if (modelId === 2) {
         const { w, A_amp } = data;
         yExact = t => A_amp * Math.sin(w * t);
