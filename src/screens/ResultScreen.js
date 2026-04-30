@@ -2,13 +2,15 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
 import { useApp, useTheme } from '../context/AppContext';
 import SChart from '../components/SChart';
+import ConvergenceChart from '../components/ConvergenceChart';
 
 export default function ResultScreen({ route, navigation }) {
   const { results: res } = route.params;
   const { isDark, T } = useApp();
   const th = useTheme();
-  const { fdm, sm, fem, tEx, yEx, eF, eS, eE } = res;
-  const xLb = res.mdl === 3 ? 'r (km)' : res.mdl === 1 ? 't (ngày)' : 't';
+  const { fdm, sm, fem, tEx, yEx, eF, eS, eE, convData } = res;
+  const domainLen = fdm.t[fdm.t.length - 1] - fdm.t[0];
+  const xLb = res.mdl === 3 ? 'r (km)' : res.mdl === 1 ? T.xAxisDays : 't';
 
   const ds = [
     { x: tEx, y: yEx, color: '#94a3b8', thick: 2.5, dash: true, label: T.exact },
@@ -53,7 +55,7 @@ export default function ResultScreen({ route, navigation }) {
               {startDate && endDate && (
                 <View style={{ backgroundColor: th.acL, borderRadius: 12, padding: 12, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={{ fontSize: 12, color: th.ac, fontWeight: '600' }}>{fmtDate(startDate)} → {fmtDate(endDate)}</Text>
-                  <Text style={{ fontSize: 12, color: th.ac, fontWeight: '600' }}>T = {b - a} ngày  |  ω = {w.toFixed(4)}</Text>
+                  <Text style={{ fontSize: 12, color: th.ac, fontWeight: '600' }}>T = {b - a} {T.days}  |  ω = {w.toFixed(4)}</Text>
                 </View>
               )}
               {/* Solution Table */}
@@ -61,7 +63,7 @@ export default function ResultScreen({ route, navigation }) {
                 <Text style={{ fontWeight: '700', fontSize: 16, color: th.tx, marginBottom: 12 }}>📋 {T.solTable}</Text>
                 {/* Header */}
                 <View style={{ flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 2, borderBottomColor: th.ac }}>
-                  {['t(ngày)', T.exact, 'FDM', 'SM', 'FEM'].map((h, i) => (
+                  {[T.tDaysCol, T.exact, 'FDM', 'SM', 'FEM'].map((h, i) => (
                     <Text key={i} style={{ flex: 1, fontSize: 11, fontWeight: '800', color: th.ac, textAlign: 'center' }}>{h}</Text>
                   ))}
                 </View>
@@ -205,6 +207,24 @@ export default function ResultScreen({ route, navigation }) {
             </View>
           ))}
         </View>
+
+        {/* Convergence Order Chart */}
+        {convData && convData.length >= 3 && (
+          <View style={{ backgroundColor: th.cBg, borderRadius: 16, padding: 20, marginBottom: 14, borderWidth: 1, borderColor: th.bdr }}>
+            <Text style={{ fontWeight: '700', fontSize: 16, color: th.tx, marginBottom: 2 }}>{T.convOrderTitle}</Text>
+            <Text style={{ fontSize: 12, color: th.ts, marginBottom: 10 }}>{T.convOrderSub}</Text>
+            <ConvergenceChart convData={convData} mode="order" domainLen={domainLen} isDark={isDark} />
+          </View>
+        )}
+
+        {/* Convergence by N Chart */}
+        {convData && convData.length >= 3 && (
+          <View style={{ backgroundColor: th.cBg, borderRadius: 16, padding: 20, marginBottom: 14, borderWidth: 1, borderColor: th.bdr }}>
+            <Text style={{ fontWeight: '700', fontSize: 16, color: th.tx, marginBottom: 2 }}>{T.convNTitle}</Text>
+            <Text style={{ fontSize: 12, color: th.ts, marginBottom: 10 }}>{T.convNSub}</Text>
+            <ConvergenceChart convData={convData} mode="N" domainLen={domainLen} isDark={isDark} />
+          </View>
+        )}
 
         {/* Advice — hidden for Model 1, 2, 3, and 4 */}
         {res.mdl !== 1 && res.mdl !== 2 && res.mdl !== 3 && res.mdl !== 4 && (

@@ -32,15 +32,6 @@ export default function HomeScreen({ navigation }) {
           <Text style={{ fontSize: 22, fontWeight: '800', color: th.ac, marginBottom: 6, textAlign: 'center' }}>{T.welcomeMsg}</Text>
           <Text style={{ fontSize: 14, color: th.ts, textAlign: 'center', lineHeight: 22 }}>{T.welcomeSub}</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 }}>
-          <View style={{ width: 52, height: 52, borderRadius: 14, backgroundColor: th.hBg, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: '#fff', fontWeight: '700', fontStyle: 'italic', fontSize: 18 }}>fx</Text>
-          </View>
-          <View>
-            <Text style={{ fontSize: 20, fontWeight: '700', color: th.tx }}>{T.appName}</Text>
-            <Text style={{ fontSize: 13, color: th.ts }}>{T.appSub}</Text>
-          </View>
-        </View>
         <View style={{ backgroundColor: th.hBg, borderRadius: 16, padding: 22, marginBottom: 22 }}>
           <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginBottom: 4 }}>{T.chooseModel}</Text>
           <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginBottom: 18 }}>4 {T.nModels}</Text>

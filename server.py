@@ -44,7 +44,7 @@ def _fetch_dji_range(start_str, end_str):
     return (prices, prices[0], prices[-1],
             actual_s.strftime('%Y-%m-%d'), actual_e.strftime('%Y-%m-%d'))
 
-def _compute_omega(prices):
+def _compute_omega(prices, d=1.0):
     n    = len(prices)
     mean = sum(prices) / n
     x    = [v - mean for v in prices]
@@ -58,7 +58,7 @@ def _compute_omega(prices):
         mag = math.sqrt(re * re + im * im)
         if mag > max_mag:
             max_mag = mag; max_k = k
-    return 2 * math.pi * max_k / n
+    return 2 * math.pi * max_k / (n * d)
 
 # ═══════════════════════════════════════
 # Utility
@@ -157,7 +157,7 @@ def g_sm(a, b, al, bt, N, fS, s1, s2, n_int=None):
 
 def g_fem(a, b, al, bt, N, pF, qF, gF):
     t = linspace(a, b, N)
-    nq = 100
+    nq = 1000
     A = [[0.0] * N for _ in range(N)]
     bv = [0.0] * N
 
@@ -209,26 +209,64 @@ def g_fem(a, b, al, bt, N, pF, qF, gF):
 def calc_err(ys, t, yE):
     return max(abs(ys[i] - yE(t[i])) for i in range(len(ys)))
 
+def rk5_m3(r1, T1, r2, T2, N):
+    h = (r2 - r1) / (N - 1)
+    t = linspace(r1, r2, N)
+
+    def f(tv, w):
+        return [w[1], -(2.0 / tv) * w[1]]
+
+    def step(tv, w):
+        K1 = f(tv, w)
+        K2 = f(tv + h/4,   [w[j] + h/4*K1[j]   for j in range(2)])
+        K3 = f(tv + h/4,   [w[j] + h/8*K1[j] + h/8*K2[j] for j in range(2)])
+        K4 = f(tv + h/2,   [w[j] - h/2*K2[j] + h*K3[j]   for j in range(2)])
+        K5 = f(tv + 3*h/4, [w[j] + 3*h/16*K1[j] + 9*h/16*K4[j] for j in range(2)])
+        K6 = f(tv + h,     [w[j] + h*(-3/7*K1[j] + 2/7*K2[j] + 12/7*K3[j] - 12/7*K4[j] + 8/7*K5[j]) for j in range(2)])
+        return [w[j] + h*(7*K1[j] + 32*K3[j] + 12*K4[j] + 32*K5[j] + 7*K6[j])/90 for j in range(2)]
+
+    def shoot(s):
+        w = [T1, s]; ys = [T1]
+        for k in range(N - 1):
+            w = step(t[k], w); ys.append(w[0])
+        return ys
+
+    p1 = shoot(-1.0)[-1]; p2 = shoot(1.0)[-1]
+    s = -1.0 + 2.0 * (T2 - p1) / (p2 - p1)
+    ys = shoot(s); phi_s = ys[-1]
+    s_old, s_new = 1.0, s
+    while abs(phi_s - T2) > 1e-8:
+        po = shoot(s_old)[-1]; pn = shoot(s_new)[-1]
+        s = s_old + (s_new - s_old) * (T2 - po) / (pn - po)
+        ys = shoot(s); phi_s = ys[-1]
+        s_old, s_new = s_new, s
+    return ys
+
 # ═══════════════════════════════════════
 # Model Solvers
 # ═══════════════════════════════════════
-def solve_m1(a, b, ya, yb, N, w):
+def solve_m1(a, b, ya, yb, N, w, mu=0.0):
+    ya_s = ya - mu
+    yb_s = yb - mu
+
     det = math.cos(w * a) * math.sin(w * b) - math.cos(w * b) * math.sin(w * a)
     if abs(det) < 1e-12:
-        Ac = ya; Bc = 0.0
+        Ac = ya_s; Bc = 0.0
     else:
-        Ac = (ya * math.sin(w * b) - yb * math.sin(w * a)) / det
-        Bc = (-ya * math.cos(w * b) + yb * math.cos(w * a)) / det
+        Ac = (ya_s * math.sin(w * b) - yb_s * math.sin(w * a)) / det
+        Bc = (-ya_s * math.cos(w * b) + yb_s * math.cos(w * a)) / det
 
-    def yE(t_val, _Ac=Ac, _Bc=Bc, _w=w):
-        return _Ac * math.cos(_w * t_val) + _Bc * math.sin(_w * t_val)
+    def yE(t_val, _Ac=Ac, _Bc=Bc, _w=w, _mu=mu):
+        return _Ac * math.cos(_w * t_val) + _Bc * math.sin(_w * t_val) + _mu
 
-    fdm = g_fdm(a, b, ya, yb, N, lambda t: 0.0, lambda t: -w * w, lambda t: 0.0)
-    sScale = (abs(ya) + abs(yb) + 1) * w
-    # Ensure RK4 stability: need omega*h <= ~1; use at least omega*(b-a)+2 steps
+    fdm = g_fdm(a, b, ya_s, yb_s, N, lambda t: 0.0, lambda t: -w * w, lambda t: 0.0)
+    fdm['y'] = [v + mu for v in fdm['y']]
+    sScale = (abs(ya_s) + abs(yb_s) + 1) * w
     n_sm = max(N, int(w * (b - a)) + 2)
-    sm = g_sm(a, b, ya, yb, N, lambda t, y: [y[1], -w * w * y[0]], -sScale, sScale, n_int=n_sm)
-    fem = g_fem(a, b, ya, yb, N, lambda t: 0.0, lambda t: w * w, lambda t: 0.0)
+    sm = g_sm(a, b, ya_s, yb_s, N, lambda t, y: [y[1], -w * w * y[0]], -sScale, sScale, n_int=n_sm)
+    sm['y'] = [v + mu for v in sm['y']]
+    fem = g_fem(a, b, ya_s, yb_s, N, lambda t: 0.0, lambda t: w * w, lambda t: 0.0)
+    fem['y'] = [v + mu for v in fem['y']]
 
     tEx = linspace(a, b, 300)
     yEx = [yE(v) for v in tEx]
@@ -239,12 +277,13 @@ def solve_m1(a, b, ya, yb, N, w):
         'eF': calc_err(fdm['y'], fdm['t'], yE),
         'eS': calc_err(sm['y'], sm['t'], yE),
         'eE': calc_err(fem['y'], fem['t'], yE),
-        'w': w, 'Ac': Ac, 'Bc': Bc,
+        'w': w, 'Ac': Ac, 'Bc': Bc, 'mu': mu,
         'a': a, 'b': b, 'ya': ya, 'yb': yb,
     }
 
 def solve_m2(mV, kV, Aa, N):
-    w = math.sqrt(kV / mV)
+    # main.pdf dùng w=pi để đối chiếu nghiệm sin(pi*t), không dùng sqrt(k/m)
+    w = math.pi
     a = 0.0; bv_val = 1.0; al = 0.0; bt = 0.0
 
     def yE(t_val, _Aa=Aa, _w=w):
@@ -270,8 +309,6 @@ def solve_m2(mV, kV, Aa, N):
     Am[iM][iM] = 1.0; bvv[iM] = yE(t[iM + 1])
     fdm = {'t': t, 'y': [al] + solve_gen(Am, bvv, n) + [bt]}
 
-    nHalf = max(1, round((N - 1) / 2))
-
     def rk4_step(wk, tk):
         def f(tt, y): return [y[1], -w * w * y[0]]
         K1 = f(tk, wk)
@@ -283,14 +320,9 @@ def solve_m2(mV, kV, Aa, N):
             wk[1] + h / 6 * (K1[1] + 2 * K2[1] + 2 * K3[1] + K4[1]),
         ]
 
-    def shoot_to_mid(s):
-        wk = [al, s]
-        for k in range(nHalf): wk = rk4_step(wk, t[k])
-        return wk[0]
-
-    s1 = 0.0; p1 = shoot_to_mid(s1)
-    s2 = Aa * w * 2; p2 = shoot_to_mid(s2)
-    sOpt = s1 + (s2 - s1) * (Aa - p1) / (p2 - p1) if abs(p2 - p1) > 1e-15 else Aa * w
+    # w=pi => bài toán cộng hưởng, secant không xác định được s từ y(1)=0.
+    # main.pdf dùng y=Aa*sin(pi*t) => y'(0) = Aa*pi, đặt trực tiếp như mô hình 2.
+    sOpt = Aa * math.pi
     wk = [al, sOpt]; sY = [al]
     for k in range(N - 1):
         wk = rk4_step(wk, t[k]); sY.append(wk[0])
@@ -300,10 +332,10 @@ def solve_m2(mV, kV, Aa, N):
     bf = [0.0] * N
 
     def trp(fn, xl, xr):
-        xs = linspace(xl, xr, 101)
+        xs = linspace(xl, xr, 1001)
         sv = 0.0
-        for i in range(100):
-            sv += (fn(xs[i]) + fn(xs[i + 1])) * ((xr - xl) / 100 / 2)
+        for i in range(1000):
+            sv += (fn(xs[i]) + fn(xs[i + 1])) * ((xr - xl) / 1000 / 2)
         return sv
 
     for i in range(N - 1):
@@ -347,8 +379,9 @@ def solve_m3(r1, T1, r2, T2, N):
     def yE(r_val, _C1=C1, _C2=C2): return _C1 / r_val + _C2
 
     fdm = g_fdm(r1, r2, T1, T2, N, lambda r: 0.0, lambda r: 0.0, lambda r: -2 / r)
-    sm = g_sm(r1, r2, T1, T2, N, lambda r, y: [y[1], -(2 / r) * y[1]], -1.0, 1.0)
+    sm  = g_sm(r1, r2, T1, T2, N, lambda r, y: [y[1], -(2 / r) * y[1]], -1.0, 1.0)
     fem = g_fem(r1, r2, T1, T2, N, lambda r: 2 / r, lambda r: 0.0, lambda r: 0.0)
+    y_rk5 = rk5_m3(r1, T1, r2, T2, N)
 
     tEx = linspace(r1, r2, 200)
     yEx = [yE(r) for r in tEx]
@@ -357,8 +390,8 @@ def solve_m3(r1, T1, r2, T2, N):
         'fdm': fdm, 'sm': sm, 'fem': fem,
         'tEx': tEx, 'yEx': yEx,
         'eF': calc_err(fdm['y'], fdm['t'], yE),
-        'eS': calc_err(sm['y'], sm['t'], yE),
-        'eE': calc_err(fem['y'], fem['t'], yE),
+        'eS': max(abs(sm['y'][i]  - y_rk5[i]) for i in range(N)),
+        'eE': max(abs(fem['y'][i] - y_rk5[i]) for i in range(N)),
         'C1': C1, 'C2': C2,
     }
 
@@ -402,13 +435,16 @@ def solve():
             end_dt    = datetime.strptime(end_str,   '%Y-%m-%d')
 
             prices, ya, yb, actual_start, actual_end = _fetch_dji_range(start_str, end_str)
-            w = _compute_omega(prices)
 
             T = max(1, (end_dt - start_dt).days)
             a = start_dt.day
             b = a + T
 
-            result = solve_m1(a, b, ya, yb, N, w)
+            d = (b - a) / (len(prices) - 1) if len(prices) > 1 else 1.0
+            w = _compute_omega(prices, d=d)
+            mu = sum(prices) / len(prices)
+
+            result = solve_m1(a, b, ya, yb, N, w, mu=mu)
             result['actualStart'] = actual_start
             result['actualEnd']   = actual_end
         elif model_id == 2:

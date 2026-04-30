@@ -46,37 +46,48 @@ export default function InputScreen({ route, navigation }) {
 
   const doSolve = async () => {
     const N = parseInt(vN) || 30;
-    let payload;
+    let basePayload;
     let startDate, endDate;
 
     if (modelId === 1) {
       const toISO = d => `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
       startDate = d1s; endDate = d1e;
-      // Server tự fetch giá đóng cửa DJI theo ngày và tính a, b
-      payload = { modelId: 1, N, startDate: toISO(d1s), endDate: toISO(d1e) };
+      basePayload = { modelId: 1, startDate: toISO(d1s), endDate: toISO(d1e) };
     } else if (modelId === 2) {
-      payload = { modelId: 2, N,
-        m: parseFloat(v2m), k: parseFloat(v2k), A: parseFloat(v2a) };
+      basePayload = { modelId: 2, m: parseFloat(v2m), k: parseFloat(v2k), A: parseFloat(v2a) };
     } else if (modelId === 3) {
-      payload = { modelId: 3, N,
-        r1: parseFloat(v3a), T1: parseFloat(v3b),
+      basePayload = { modelId: 3, r1: parseFloat(v3a), T1: parseFloat(v3b),
         r2: parseFloat(v3c), T2: parseFloat(v3d) };
     } else {
-      payload = { modelId: 4, N,
-        K0: parseFloat(v4a), KT: parseFloat(v4b), Te: parseFloat(v4t) };
+      basePayload = { modelId: 4, K0: parseFloat(v4a), KT: parseFloat(v4b), Te: parseFloat(v4t) };
     }
+
+    const SERVER = 'https://bvp-iud7.onrender.com';
+    const makeFetch = (n) => fetch(`${SERVER}/solve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...basePayload, N: n }),
+    }).then(r => r.json()).catch(() => null);
+
+    // Fixed N values for convergence order chart + user's N for main result
+    const convNs = [...new Set([5, 10, 20, 50, 100, N])].sort((a, b) => a - b);
 
     try {
       setSolving(true);
-      const response = await fetch(`https://bvp-iud7.onrender.com/solve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      const allResults = await Promise.all(convNs.map(makeFetch));
 
-      // Tái tạo yExact là hàm JS từ metadata server trả về
+      const mainIdx = convNs.indexOf(N);
+      const data = allResults[mainIdx];
+      if (!data || data.error) throw new Error(data?.error || 'Lỗi kết nối server');
+
+      // Build convergence dataset (filter out failed calls)
+      const convData = convNs.map((n, i) => {
+        const r = allResults[i];
+        if (!r || r.error || r.eF == null || r.eS == null || r.eE == null) return null;
+        return { N: n, eF: r.eF, eS: r.eS, eE: r.eE };
+      }).filter(Boolean);
+
+      // Reconstruct yExact function from server metadata
       let yExact;
       if (modelId === 1) {
         const { w, Ac, Bc } = data;
@@ -93,11 +104,11 @@ export default function InputScreen({ route, navigation }) {
         yExact = t => (KT - K0) * (t / Te) + K0;
       }
 
-      const res = { ...data, yExact };
+      const res = { ...data, yExact, convData };
       if (modelId === 1) { res.startDate = startDate; res.endDate = endDate; }
       navigation.navigate('Result', { results: res });
     } catch (err) {
-      Alert.alert('Lỗi kết nối server', `${err.message}\n\nKiểm tra server đang chạy tại ${SERVER_URL}`);
+      Alert.alert('Lỗi kết nối server', err.message);
     } finally {
       setSolving(false);
     }
@@ -128,13 +139,12 @@ export default function InputScreen({ route, navigation }) {
         {/* Model 1 */}
         {modelId === 1 && (
           <>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: th.ac, letterSpacing: 0.8, marginBottom: 16, marginTop: 22 }}>{T.bvpBoundary}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: th.ac, letterSpacing: 0.8, marginBottom: 10, marginTop: 22 }}>{T.m1Intro}</Text>
+            <Text style={{ fontSize: 13, color: th.ts, lineHeight: 21, marginBottom: 18 }}>{T.m1IntroText}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: th.ac, letterSpacing: 0.8, marginBottom: 16 }}>{T.bvpBoundary}</Text>
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <View style={{ flex: 1 }}><CalPick label={T.startDate} value={d1s} onChange={sd1s} /></View>
               <View style={{ flex: 1 }}><CalPick label={T.endDate} value={d1e} onChange={sd1e} /></View>
-            </View>
-            <View style={{ backgroundColor: th.acL, borderRadius: 10, padding: 10, marginTop: 4, borderWidth: 1, borderColor: th.ac + '30' }}>
-              <Text style={{ fontSize: 12, color: th.ac }}>Giá đóng cửa DJI (y(a), y(b)) sẽ được tự động lấy từ dữ liệu thực theo ngày đã chọn.</Text>
             </View>
           </>
         )}
@@ -142,9 +152,13 @@ export default function InputScreen({ route, navigation }) {
         {/* Model 2 */}
         {modelId === 2 && (
           <>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: th.ac, letterSpacing: 0.8, marginBottom: 16, marginTop: 22 }}>{T.mechParams}</Text>
-            <FieldInput label={T.mass} icon="⚖" value={v2m} onChangeText={s2m} />
-            <FieldInput label={T.spring} icon="🔩" value={v2k} onChangeText={s2k} />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: th.ac, letterSpacing: 0.8, marginBottom: 10, marginTop: 22 }}>{T.m2Intro}</Text>
+            <Text style={{ fontSize: 13, color: th.ts, lineHeight: 21, marginBottom: 18 }}>{T.m2IntroText}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: th.ac, letterSpacing: 0.8, marginBottom: 16 }}>{T.mechParams}</Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flex: 1 }}><FieldInput label={T.mass} icon="⚖" value={v2m} onChangeText={s2m} /></View>
+              <View style={{ flex: 1 }}><FieldInput label={T.spring} icon="🔩" value={v2k} onChangeText={s2k} /></View>
+            </View>
             <FieldInput label={T.amp} icon="↕" value={v2a} onChangeText={s2a} />
           </>
         )}
@@ -152,7 +166,9 @@ export default function InputScreen({ route, navigation }) {
         {/* Model 3 */}
         {modelId === 3 && (
           <>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: th.ac, letterSpacing: 0.8, marginBottom: 16, marginTop: 22 }}>{T.heatParams}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: th.ac, letterSpacing: 0.8, marginBottom: 10, marginTop: 22 }}>{T.m3Intro}</Text>
+            <Text style={{ fontSize: 13, color: th.ts, lineHeight: 21, marginBottom: 18 }}>{T.m3IntroText}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: th.ac, letterSpacing: 0.8, marginBottom: 16 }}>{T.heatParams}</Text>
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <View style={{ flex: 1 }}><FieldInput label={T.r1} icon="◉" value={v3a} onChangeText={s3a} /></View>
               <View style={{ flex: 1 }}><FieldInput label={T.t1} icon="🌡" value={v3b} onChangeText={s3b} /></View>
@@ -167,12 +183,57 @@ export default function InputScreen({ route, navigation }) {
         {/* Model 4 */}
         {modelId === 4 && (
           <>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: th.ac, letterSpacing: 0.8, marginBottom: 16, marginTop: 22 }}>{T.econParams}</Text>
-            <FieldInput label={T.k0} icon="📊" value={v4a} onChangeText={s4a} />
-            <FieldInput label={T.kT} icon="🎯" value={v4b} onChangeText={s4b} />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: th.ac, letterSpacing: 0.8, marginBottom: 10, marginTop: 22 }}>{T.m4Intro}</Text>
+            <Text style={{ fontSize: 13, color: th.ts, lineHeight: 21, marginBottom: 18 }}>{T.m4IntroText}</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: th.ac, letterSpacing: 0.8, marginBottom: 16 }}>{T.econParams}</Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flex: 1 }}><FieldInput label={T.k0} icon="📊" value={v4a} onChangeText={s4a} /></View>
+              <View style={{ flex: 1 }}><FieldInput label={T.kT} icon="🎯" value={v4b} onChangeText={s4b} /></View>
+            </View>
             <FieldInput label={T.tEnd} icon="⏱" value={v4t} onChangeText={s4t} />
           </>
         )}
+
+        {/* BVP Equation */}
+        <Text style={{ fontSize: 13, fontWeight: '700', color: th.ac, letterSpacing: 0.8, marginBottom: 12, marginTop: 22 }}>{T.bvpEquLabel}</Text>
+        <View style={{ backgroundColor: th.cBg, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: th.bdr, marginBottom: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 12 }}>
+            {/* Left brace bar */}
+            <View style={{ width: 3, backgroundColor: th.ac, borderRadius: 99 }} />
+            {/* System lines */}
+            <View style={{ flex: 1, gap: 8 }}>
+              {modelId === 1 && (
+                <>
+                  <Text style={{ fontSize: 14, color: th.tx, fontWeight: '600' }}>x″(t) + ω²x(t) = 0</Text>
+                  <Text style={{ fontSize: 13, color: th.ts }}>x(a) = y(a)</Text>
+                  <Text style={{ fontSize: 13, color: th.ts }}>x(b) = y(b)</Text>
+                  <View style={{ marginTop: 2, paddingTop: 6, borderTopWidth: 1, borderTopColor: th.bdr }}>
+                    <Text style={{ fontSize: 12, color: th.ac }}>ω = 3π / (2(b − a))</Text>
+                  </View>
+                </>
+              )}
+              {modelId === 2 && (
+                <>
+                  <Text style={{ fontSize: 14, color: th.tx, fontWeight: '600' }}>mx″(t) + kx(t) = 0</Text>
+                  <Text style={{ fontSize: 13, color: th.ts }}>x(0) = 0,{'   '}x(1) = 0</Text>
+                </>
+              )}
+              {modelId === 3 && (
+                <>
+                  <Text style={{ fontSize: 14, color: th.tx, fontWeight: '600' }}>ru″(r) + 2u′(r) = 0</Text>
+                  <Text style={{ fontSize: 13, color: th.ts }}>u(r₁) = T₁,{'   '}u(r₂) = T₂</Text>
+                </>
+              )}
+              {modelId === 4 && (
+                <>
+                  <Text style={{ fontSize: 14, color: th.tx, fontWeight: '600' }}>x″(t) = 0</Text>
+                  <Text style={{ fontSize: 13, color: th.ts }}>x(0) = K₀</Text>
+                  <Text style={{ fontSize: 13, color: th.ts }}>x(T) = K_T</Text>
+                </>
+              )}
+            </View>
+          </View>
+        </View>
 
         {/* Grid N */}
         <Text style={{ fontSize: 13, fontWeight: '700', color: th.ac, letterSpacing: 0.8, marginBottom: 16, marginTop: 22 }}>{T.numParams}</Text>
