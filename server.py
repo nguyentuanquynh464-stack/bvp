@@ -385,6 +385,20 @@ def solve_m3(r1, T1, r2, T2, N):
     tEx = linspace(r1, r2, 200)
     yEx = [yE(r) for r in tEx]
 
+    # Phân tích hội tụ (giống mô hình nhiệt lõi.py)
+    N_conv = [5, 9, 17, 33, 65, 129, 257]
+    conv_data = []
+    for Ni in N_conv:
+        fi = g_fdm(r1, r2, T1, T2, Ni, lambda r: 0.0, lambda r: 0.0, lambda r: -2 / r)
+        si = g_sm(r1, r2, T1, T2, Ni, lambda r, y: [y[1], -(2 / r) * y[1]], -1.0, 1.0)
+        ei = g_fem(r1, r2, T1, T2, Ni, lambda r: 2 / r, lambda r: 0.0, lambda r: 0.0)
+        conv_data.append({
+            'N': Ni,
+            'eF': calc_err(fi['y'], fi['t'], yE),
+            'eS': calc_err(si['y'], si['t'], yE),
+            'eE': calc_err(ei['y'], ei['t'], yE),
+        })
+
     return {
         'fdm': fdm, 'sm': sm, 'fem': fem,
         'tEx': tEx, 'yEx': yEx,
@@ -392,6 +406,7 @@ def solve_m3(r1, T1, r2, T2, N):
         'eS': calc_err(sm['y'],  sm['t'],  yE),
         'eE': calc_err(fem['y'], fem['t'], yE),
         'C1': C1, 'C2': C2,
+        'convData': conv_data,
     }
 
 def solve_m4(K0, KT, Te, N):
