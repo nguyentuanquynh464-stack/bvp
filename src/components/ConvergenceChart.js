@@ -38,7 +38,7 @@ function fmtLogTick(v) {
   return `1e${e}`;
 }
 
-export default function ConvergenceChart({ convData, mode, domainLen, isDark }) {
+export default function ConvergenceChart({ convData, mode, domainLen, isDark, skipHFilter = false }) {
   const W = Dimensions.get('window').width - 72;
   const H = 250;
   const pad = { l: 56, r: 16, t: 14, b: 34 };
@@ -57,9 +57,8 @@ export default function ConvergenceChart({ convData, mode, domainLen, isDark }) 
   const isOrder = mode === 'order';
   const dl = domainLen > 0 ? domainLen : 1;
 
-  // Lọc h < 1 cho mode order (log10(h) < 0), giống mô hình 1.py
   const valid = isOrder
-    ? validAll.filter(d => dl / (d.N - 1) < 1)
+    ? (skipHFilter ? validAll : validAll.filter(d => dl / (d.N - 1) < 1))
     : validAll;
   if (valid.length < 3) return null;
 

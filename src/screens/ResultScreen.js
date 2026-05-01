@@ -213,7 +213,7 @@ export default function ResultScreen({ route, navigation }) {
           <View style={{ backgroundColor: th.cBg, borderRadius: 16, padding: 20, marginBottom: 14, borderWidth: 1, borderColor: th.bdr }}>
             <Text style={{ fontWeight: '700', fontSize: 16, color: th.tx, marginBottom: 2 }}>{T.convOrderTitle}</Text>
             <Text style={{ fontSize: 12, color: th.ts, marginBottom: 10 }}>{T.convOrderSub}</Text>
-            <ConvergenceChart convData={convData} mode="order" domainLen={domainLen} isDark={isDark} />
+            <ConvergenceChart convData={convData} mode="order" domainLen={domainLen} isDark={isDark} skipHFilter={res.mdl === 3} />
           </View>
         )}
 

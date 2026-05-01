@@ -155,9 +155,8 @@ def g_sm(a, b, al, bt, N, fS, s1, s2, n_int=None):
         ys_out.append(ys_fine[i0] * (1.0 - frac) + ys_fine[i1] * frac)
     return {'t': t_out, 'y': ys_out}
 
-def g_fem(a, b, al, bt, N, pF, qF, gF):
+def g_fem(a, b, al, bt, N, pF, qF, gF, nq=20):
     t = linspace(a, b, N)
-    nq = 1000
     A = [[0.0] * N for _ in range(N)]
     bv = [0.0] * N
 
@@ -391,7 +390,7 @@ def solve_m3(r1, T1, r2, T2, N):
     for Ni in N_conv:
         fi = g_fdm(r1, r2, T1, T2, Ni, lambda r: 0.0, lambda r: 0.0, lambda r: -2 / r)
         si = g_sm(r1, r2, T1, T2, Ni, lambda r, y: [y[1], -(2 / r) * y[1]], -1.0, 1.0)
-        ei = g_fem(r1, r2, T1, T2, Ni, lambda r: 2 / r, lambda r: 0.0, lambda r: 0.0)
+        ei = g_fem(r1, r2, T1, T2, Ni, lambda r: 2 / r, lambda r: 0.0, lambda r: 0.0, nq=20)
         conv_data.append({
             'N': Ni,
             'eF': calc_err(fi['y'], fi['t'], yE),
