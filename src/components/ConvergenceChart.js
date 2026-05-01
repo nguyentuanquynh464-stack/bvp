@@ -57,7 +57,10 @@ export default function ConvergenceChart({ convData, mode, domainLen, isDark }) 
   const isOrder = mode === 'order';
   const dl = domainLen > 0 ? domainLen : 1;
 
-  const valid = validAll;
+  // Lọc h < 1 cho mode order (log10(h) < 0), giống mô hình 1.py
+  const valid = isOrder
+    ? validAll.filter(d => dl / (d.N - 1) < 1)
+    : validAll;
   if (valid.length < 3) return null;
 
   const xVals = isOrder
