@@ -69,6 +69,23 @@ export default function InputScreen({ route, navigation }) {
       body: JSON.stringify({ ...basePayload, N: n }),
     }).then(r => r.json()).catch(() => null);
 
+    // Model 3: server computes convData with MMS internally — single request only
+    if (modelId === 3) {
+      try {
+        setSolving(true);
+        const data = await makeFetch(N);
+        if (!data || data.error) throw new Error(data?.error || 'Lỗi kết nối server');
+        const { C1, C2 } = data;
+        const yExact = r => C1 / r + C2;
+        navigation.navigate('Result', { results: { ...data, yExact } });
+      } catch (err) {
+        Alert.alert('Lỗi kết nối server', err.message);
+      } finally {
+        setSolving(false);
+      }
+      return;
+    }
+
     // Fixed N values for convergence order chart + user's N for main result
     const convNs = [...new Set([5, 9, 17, 33, 65, 129, 257, N])].sort((a, b) => a - b);
 
@@ -95,9 +112,6 @@ export default function InputScreen({ route, navigation }) {
       } else if (modelId === 2) {
         const { w, A_amp } = data;
         yExact = t => A_amp * Math.sin(w * t);
-      } else if (modelId === 3) {
-        const { C1, C2 } = data;
-        yExact = r => C1 / r + C2;
       } else {
         const { K0, KT } = data;
         const Te = parseFloat(v4t);

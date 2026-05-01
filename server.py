@@ -384,16 +384,27 @@ def solve_m3(r1, T1, r2, T2, N):
     tEx = linspace(r1, r2, 200)
     yEx = [yE(r) for r in tEx]
 
-    # Phân tích hội tụ (giống mô hình nhiệt lõi.py)
+    # MMS cho FDM: thêm hạng sin vào nghiệm giải tích (giống err_FDM trong mô hình nhiệt lõi.py)
+    C_mms = 100.0
+    L = r2 - r1
+
+    def f_mms(r, _C=C_mms, _L=L, _r1=r1):
+        return _C * (-(math.pi / _L) ** 2 * math.sin(math.pi * (r - _r1) / _L)
+                     + 2 * math.pi / (r * _L) * math.cos(math.pi * (r - _r1) / _L))
+
+    def y_mms(r, _C1=C1, _C2=C2, _C=C_mms, _L=L, _r1=r1):
+        return _C1 / r + _C2 + _C * math.sin(math.pi * (r - _r1) / _L)
+
+    # Phân tích hội tụ
     N_conv = [5, 9, 17, 33, 65, 129, 257]
     conv_data = []
     for Ni in N_conv:
-        fi = g_fdm(r1, r2, T1, T2, Ni, lambda r: 0.0, lambda r: 0.0, lambda r: -2 / r)
+        fi = g_fdm(r1, r2, T1, T2, Ni, f_mms, lambda r: 0.0, lambda r: -2 / r)
         si = g_sm(r1, r2, T1, T2, Ni, lambda r, y: [y[1], -(2 / r) * y[1]], -1.0, 1.0)
         ei = g_fem(r1, r2, T1, T2, Ni, lambda r: 2 / r, lambda r: 0.0, lambda r: 0.0, nq=20)
         conv_data.append({
             'N': Ni,
-            'eF': calc_err(fi['y'], fi['t'], yE),
+            'eF': calc_err(fi['y'], fi['t'], y_mms),
             'eS': calc_err(si['y'], si['t'], yE),
             'eE': calc_err(ei['y'], ei['t'], yE),
         })
